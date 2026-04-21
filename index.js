@@ -1,4 +1,16 @@
 require("dotenv").config();
+const express = require("express");
+const app = express();
+
+app.get("/", (req, res) => {
+  res.send("Bot is alive");
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("Web server chạy");
+});
 const { 
   Client, 
   GatewayIntentBits, 
@@ -49,7 +61,7 @@ const PLAN_TIME = {
 };
 
 const webhook = new WebhookClient({
-  url: "https://discord.com/api/webhooks/1496188239785230406/ETKz-xgbSmYXlQBQHJeWI5_SXeilQwdW2FXAsAcyA6OHnQnbgod1TXi-XHpeQRPQeHC3"
+   url: process.env.WEBHOOK_URL
 });
 
 const client = new Client({

@@ -130,7 +130,7 @@ new SlashCommandBuilder()
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 (async () => {
   await rest.put(
-    Routes.applicationGuildCommands(process.env.CLIENT_ID, "1495637850866319390"),
+    Routes.applicationGuildCommands("1496147288580685854", "1495637850866319390"),
     { body: commands }
   );
 })();

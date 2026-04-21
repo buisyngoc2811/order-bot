@@ -6,7 +6,7 @@ app.get("/", (req, res) => {
   res.send("Bot is alive");
 });
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log("Web server chạy");
 });
 const { 
@@ -71,13 +71,7 @@ const webhook = new WebhookClient({
    url: process.env.WEBHOOK_URL
 });
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
-});
 
-client.once("clientReady", () => {
-  console.log(`🔥 ${client.user.tag} đã online`);
-});
 
 // ===== COMMANDS =====
 const commands = [
@@ -511,5 +505,3 @@ if (i.commandName === "check") {
 }
 
 });
-
-client.login(process.env.TOKEN);

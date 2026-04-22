@@ -1,8 +1,4 @@
 require("dotenv").config();
-const express = require("express");
-const app = express();
-app.use(express.json());
-
 const fs = require("fs");
 const { 
   Client, 
@@ -434,7 +430,7 @@ const list = userOrders.map((o, index) => {
   const orderId = "36-" + Math.floor(10000 + Math.random() * 90000);
   const channelId = i.channel.id;
   // 👉 tạo nội dung chuyển khoản
-  const note = `${orderId}`;
+  const note = `${user.id}`;
   // 👉 tạo QR
   const qr = `https://img.vietqr.io/image/MB-8999999878-compact.png?amount=${price}&addInfo=${note}`;
   // 👉 tính bảo hành
@@ -479,15 +475,6 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
       { name: "🏦 Ngân hàng", value: "MB Bank", inline: true },
       { name: "🔢 Số tài khoản", value: "`8999999878`", inline: true },
       { name: "📌 Nội dung CK", value: `\`${note}\`` },
-      {
-  name: "⚠️ Lưu ý",
-  value: `📌 Nhớ ghi: \`${orderId}\` nha 👀
-
-⚠️ Thiếu dấu "-" là bot mù luôn đó 😅  
-👉 Ghi kiểu \`${orderId.replace("-", "")}\` là toang
-
-Sai thì gửi bill mình cứu liền!`
-}
     )
     .setImage(qr) // 🔥 QUAN TRỌNG: QR hiện ở đây
     .setThumbnail(user.displayAvatarURL({ dynamic: true }))

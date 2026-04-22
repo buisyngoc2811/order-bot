@@ -22,22 +22,35 @@ const {
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
+let isReady = false;
+
 client.once("ready", () => {
   console.log("Bot đã online!");
+  isReady = true;
 });
 client.login(process.env.TOKEN);
 
 app.post("/webhook", async (req, res) => {
+  if (!isReady) {
+  console.log("⚠️ Bot chưa sẵn sàng");
+  return res.sendStatus(200);
+}
   const data = req.body;
 
   console.log("💰 SePay gửi:", data);
 
   const amount = data.amount;
-  const content = data.content;
+ const content = data.description || data.content;
 
   if (!content) return res.sendStatus(200);
 
-  const userId = content.trim();
+  const match = content.match(/36-\d+/);
+if (!match) return res.sendStatus(200);
+
+const orderId = match[0];
+  console.log("👉 orderId:", orderId);
+  console.log("👉 description:", content);
+
 
   // 🔥 kiểm tra file
   if (!fs.existsSync("./orders.json")) return res.sendStatus(200);
@@ -45,14 +58,24 @@ app.post("/webhook", async (req, res) => {
   const orders = JSON.parse(fs.readFileSync("./orders.json"));
 
   // 🔥 tìm đúng đơn theo user
-  const order = [...orders].reverse().find(o => o.userId === userId);
+  const order = orders.find(o => o.orderId === orderId);
   if (!order) return res.sendStatus(200);
+if (order.paid) {
+  console.log("⚠️ Đơn đã thanh toán rồi");
+  return res.sendStatus(200);
+}
+  const userId = order.userId;
+  console.log("👉 userId:", userId);
 const expectedPrice = PRICE_LIST[order.product]?.[order.plan] || 0;
 
-// ❌ nếu chuyển thiếu tiền
+  // ❌ nếu chuyển thiếu tiền
 if (amount < expectedPrice) {
   const channel = await client.channels.fetch(order.channelId);
 
+if (!channel) {
+  console.log("❌ Không tìm thấy channel:", order.channelId);
+  return res.sendStatus(200);
+}
   await channel.send(
     `⚠️ <@${userId}> chuyển thiếu tiền mất òi :(\n` +
     `💰 Cần: ${expectedPrice.toLocaleString()}đ\n` +
@@ -66,7 +89,10 @@ if (amount < expectedPrice) {
   try {
     // 🔥 lấy đúng ticket channel
     const channel = await client.channels.fetch(order.channelId);
-
+    if (!channel) {
+  console.log("❌ Không tìm thấy channel:", order.channelId);
+  return res.sendStatus(200);
+}
     const messages = [
   `💰 Ting ting! <@${userId}> đã thanh toán ${amount.toLocaleString()}đ`,
   `🤑 <@${userId}> vừa nạp ${amount.toLocaleString()}đ xong`,
@@ -77,6 +103,11 @@ if (amount < expectedPrice) {
 const msg = messages[Math.floor(Math.random() * messages.length)];
 
 await channel.send(msg);
+   order.paid = true;
+order.paidAt = Date.now();
+
+fs.writeFileSync("./orders.json", JSON.stringify(orders, null, 2));
+console.log("✅ Đã gửi Discord:", msg);
   } catch (err) {
     console.log("Lỗi gửi ticket:", err);
   }
@@ -472,7 +503,7 @@ const list = userOrders.map((o, index) => {
     embeds: [embed],
     ephemeral: true
   });
-}
+  }
   if (i.commandName === "order") {
 
   // 👉 lấy dữ liệu từ lệnh
@@ -490,21 +521,18 @@ const list = userOrders.map((o, index) => {
       ephemeral: true
     });
   }
-
-  // 👉 tạo nội dung chuyển khoản
-  const note = `${user.id}`;
-
-  // 👉 tạo QR
-  const qr = `https://img.vietqr.io/image/MB-8999999878-compact.png?amount=${price}&addInfo=${note}`;
-
   // 👉 tạo mã đơn
   const orderId = "36-" + Math.floor(10000 + Math.random() * 90000);
   const channelId = i.channel.id;
+  // 👉 tạo nội dung chuyển khoản
+  const note = `${orderId}`;
+  // 👉 tạo QR
+  const qr = `https://img.vietqr.io/image/MB-8999999878-compact.png?amount=${price}&addInfo=${note}`;
   // 👉 tính bảo hành
   const warrantyDays = PLAN_TIME[plan] || 0;
   const expireAt = Date.now() + warrantyDays * 86400000;
-    // 🔥 LƯU ORDER
-if (!fs.existsSync("./orders.json")) {
+  // 🔥 LƯU ORDER
+  if (!fs.existsSync("./orders.json")) {
   fs.writeFileSync("./orders.json", "[]");
 }
 
@@ -522,7 +550,8 @@ data.push({
   product,
   plan,
   expireAt,
-  channelId
+  channelId,
+  paid: false 
 });
 
 fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));

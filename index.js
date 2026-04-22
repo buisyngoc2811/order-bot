@@ -145,9 +145,23 @@ client.on("interactionCreate", async (i) => {
 if (i.isButton() && i.customId.startsWith("done_")) {
   await i.deferUpdate();
   const [_, orderId, product, plan, buyerId] = i.customId.split("_");
-  if (i.user.id !== buyerId) {
+  const data = JSON.parse(fs.readFileSync("./orders.json"));
+const order = data.find(o => o.orderId === orderId);
+
+if (order?.paid) {
   return i.followUp({
-    content: "❌ Đây không phải đơn của bạn",
+    content: "⚠️ Đơn này đã hoàn thành rồi",
+    ephemeral: true
+  });
+}
+
+order.paid = true;
+fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
+  const STAFF_ROLE_ID = "1496252313835274250";
+
+if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
+  return i.followUp({
+    content: "❌ Bạn không có quyền",
     ephemeral: true
   });
 }
@@ -432,7 +446,7 @@ const list = userOrders.map((o, index) => {
   // 👉 tạo nội dung chuyển khoản
   const note = `${user.id}`;
   // 👉 tạo QR
-  const qr = `https://img.vietqr.io/image/MB-8999999878-compact.png?amount=${price}&addInfo=${note}`;
+  const qr = `https://img.vietqr.io/image/VCB-1030776109-compact.png?amount=${price}&addInfo=${encodeURIComponent(note)}`;
   // 👉 tính bảo hành
   const warrantyDays = PLAN_TIME[plan] || 0;
   const expireAt = Date.now() + warrantyDays * 86400000;
@@ -472,8 +486,8 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
       { name: "👤 Người mua", value: `<@${user.id}>`, inline: true },
       { name: "🧾 Mã đơn", value: `\`${orderId}\``, inline: true },
       { name: "💰 Đơn giá", value: `\`${price.toLocaleString()}đ\``, inline: true },
-      { name: "🏦 Ngân hàng", value: "MB Bank", inline: true },
-      { name: "🔢 Số tài khoản", value: "`8999999878`", inline: true },
+      { name: "🏦 Ngân hàng", value: "Vietcombank", inline: true },
+      { name: "🔢 Số tài khoản", value: "`1030776109`", inline: true },
       { name: "📌 Nội dung CK", value: `\`${note}\`` },
     )
     .setImage(qr) // 🔥 QUAN TRỌNG: QR hiện ở đây
@@ -491,9 +505,13 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
 
   // 👉 gửi ra Discord
   await i.reply({
-    embeds: [embed],
-    components: [row]
-  });
+  embeds: [embed]
+});
+    await i.followUp({
+  content: `🔧 Staff xử lý đơn: ${orderId}`,
+  components: [row],
+  ephemeral: true
+});
 }
   // ===== CHECK =====
 if (i.commandName === "check") {

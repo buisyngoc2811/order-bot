@@ -570,7 +570,7 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
       { name: "💰 Đơn giá", value: `\`${price.toLocaleString()}đ\``, inline: true },
       { name: "🏦 Ngân hàng", value: "MB Bank", inline: true },
       { name: "🔢 Số tài khoản", value: "`8999999878`", inline: true },
-      { name: "📌 Nội dung CK", value: `\`${note}\`` }
+      { name: "📌 Nội dung CK", value: `\`${note}\`` },
       {
   name: "⚠️ Lưu ý",
   value: `📌 Nhớ ghi đúng nội dung: \`${orderId}\` nha 👀

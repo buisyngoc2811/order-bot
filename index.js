@@ -355,7 +355,7 @@ await webhook.send({
   embeds: [embed]
 });
 
-  await i.update({
+  await i.editReply{
   components: [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()

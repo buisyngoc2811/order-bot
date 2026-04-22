@@ -153,12 +153,21 @@ client.on("interactionCreate", async (i) => {
   // ===== BUTTON DONE (THÊM Ở ĐÂY) =====
 if (i.isButton() && i.customId.startsWith("done_")) {
   const [_, orderId, product, plan, buyerId] = i.customId.split("_");
-  if (i.user.id !== buyerId) {
-  return i.reply({
-    content: "❌ Đây không phải đơn của bạn",
-    ephemeral: true
-  });
-}
+
+  const STAFF_ROLE_ID = "1496252313835274250";
+
+  // ❌ chặn nếu không phải staff hoặc admin
+  if (
+    !i.member.roles.cache.has(STAFF_ROLE_ID) &&
+    !i.member.permissions.has("Administrator")
+  ) {
+    return i.reply({
+      content: "❌ Chỉ staff/admin mới được xác nhận đơn!",
+      ephemeral: true
+    });
+  }
+
+  // 👉 xử lý tiếp như cũ
   const price = PRICE_LIST[product]?.[plan] || 0;
 
   const warrantyDays = PLAN_TIME[plan] || 0;
@@ -170,17 +179,16 @@ if (i.isButton() && i.customId.startsWith("done_")) {
     fs.writeFileSync("./orders.json", "[]");
   }
 
-let data = [];
-
-try {
-  data = JSON.parse(fs.readFileSync("./orders.json"));
-} catch {
-  data = [];
-}
+  let data = [];
+  try {
+    data = JSON.parse(fs.readFileSync("./orders.json"));
+  } catch {
+    data = [];
+  }
 
   data.push({
     orderId,
-    userId: i.user.id,
+    userId: buyerId,
     product,
     plan,
     expireAt
@@ -195,22 +203,22 @@ try {
       .setStyle(ButtonStyle.Primary)
   );
 
-  const embed = new EmbedBuilder()
-    .setColor("#f1c40f")
-    .setTitle("💰 HOÀN THÀNH ĐƠN")
-    .setDescription(`
+ const embed = new EmbedBuilder()
+  .setColor("#f1c40f")
+  .setTitle("💰 HOÀN THÀNH ĐƠN")
+  .setDescription(`
 🧾 **Mã đơn**: \`${orderId}\`
 💰 **Đơn giá**: \`${price.toLocaleString()}đ\`
 🛡 **Bảo hành**: ${PLAN_NAME[plan]}
 ⏳ **Hết hạn**: ${expireDate}
-    `);
+    `)
+  .setFooter({ text: `Xác nhận bởi: ${i.user.tag}` });
 
   return i.update({
     embeds: [embed],
     components: [row]
   });
 }
-
 // ===== BUTTON =====
 if (i.isButton() && i.customId.startsWith("feedback")) {
   await i.deferUpdate();

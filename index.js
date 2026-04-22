@@ -3,38 +3,7 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
-app.post("/webhook", async (req, res) => {
-  const data = req.body;
-
-  console.log("💰 SePay gửi:", data);
-
-  const amount = data.amount;
-  const content = data.content;
-
-  if (!content) return res.sendStatus(200);
-
-  const userId = content.trim();
-
-  try {
-    const channel = await client.channels.fetch("1411071233050808444");
-
-    await channel.send(
-      `💰 Nhận ${amount.toLocaleString()}đ từ <@${userId}>`
-    );
-  } catch (err) {
-    console.log("Lỗi gửi Discord:", err);
-  }
-
-  res.sendStatus(200);
-});
-app.use(express.json());
-app.get("/", (req, res) => {
-  res.send("Bot is alive");
-});
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("Web server chạy");
-});
+const fs = require("fs");
 const { 
   Client, 
   GatewayIntentBits, 
@@ -53,13 +22,74 @@ const {
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
-
 client.once("ready", () => {
   console.log("Bot đã online!");
 });
-
 client.login(process.env.TOKEN);
 
+app.post("/webhook", async (req, res) => {
+  const data = req.body;
+
+  console.log("💰 SePay gửi:", data);
+
+  const amount = data.amount;
+  const content = data.content;
+
+  if (!content) return res.sendStatus(200);
+
+  const userId = content.trim();
+
+  // 🔥 kiểm tra file
+  if (!fs.existsSync("./orders.json")) return res.sendStatus(200);
+
+  const orders = JSON.parse(fs.readFileSync("./orders.json"));
+
+  // 🔥 tìm đúng đơn theo user
+  const order = [...orders].reverse().find(o => o.userId === userId);
+  if (!order) return res.sendStatus(200);
+const expectedPrice = PRICE_LIST[order.product]?.[order.plan] || 0;
+
+// ❌ nếu chuyển thiếu tiền
+if (amount < expectedPrice) {
+  const channel = await client.channels.fetch(order.channelId);
+
+  await channel.send(
+    `⚠️ <@${userId}> chuyển thiếu tiền mất òi :(\n` +
+    `💰 Cần: ${expectedPrice.toLocaleString()}đ\n` +
+    `💸 Đã chuyển: ${amount.toLocaleString()}đ`
+  );
+
+  return res.sendStatus(200);
+}
+  
+
+  try {
+    // 🔥 lấy đúng ticket channel
+    const channel = await client.channels.fetch(order.channelId);
+
+    const messages = [
+  `💰 Ting ting! <@${userId}> đã thanh toán ${amount.toLocaleString()}đ`,
+  `🤑 <@${userId}> vừa nạp ${amount.toLocaleString()}đ xong`,
+  `💸 Ví shop vừa kêu ting! (${amount.toLocaleString()}đ)`,
+  `🚀 Thanh toán thành công! <@${userId}> đã hoàn tất đơn`
+];
+
+const msg = messages[Math.floor(Math.random() * messages.length)];
+
+await channel.send(msg);
+  } catch (err) {
+    console.log("Lỗi gửi ticket:", err);
+  }
+
+  res.sendStatus(200);
+});
+app.get("/", (req, res) => {
+  res.send("Bot is alive");
+});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Web server chạy");
+});
 // ===== PRICE =====
 const PRICE_LIST = {
   youtube: { "1m": 40000, "3m": 120000, "6m": 230000, "12m": 350000 },
@@ -190,30 +220,6 @@ if (i.isButton() && i.customId.startsWith("done_")) {
   const warrantyDays = PLAN_TIME[plan] || 0;
   const expireAt = Date.now() + warrantyDays * 86400000;
   const expireDate = new Date(expireAt).toLocaleDateString("vi-VN");
-
-  const fs = require("fs");
-  if (!fs.existsSync("./orders.json")) {
-    fs.writeFileSync("./orders.json", "[]");
-  }
-
-let data = [];
-
-try {
-  data = JSON.parse(fs.readFileSync("./orders.json"));
-} catch {
-  data = [];
-}
-
-  data.push({
-    orderId,
-    userId: i.user.id,
-    product,
-    plan,
-    expireAt
-  });
-
-  fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
-
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`feedback|${orderId}|${product}|${plan}`)
@@ -415,8 +421,6 @@ if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
     ephemeral: true
   });
 }
-  const fs = require("fs");
-
   if (!fs.existsSync("./orders.json")) {
     return i.reply({
       content: "❌ Chưa có dữ liệu đơn hàng",
@@ -491,15 +495,37 @@ const list = userOrders.map((o, index) => {
   const note = `${user.id}`;
 
   // 👉 tạo QR
-  const qr = `https://img.vietqr.io/image/VCB-1030776109-compact.png?amount=${price}&addInfo=${note}`;
+  const qr = `https://img.vietqr.io/image/MB-8999999878-compact.png?amount=${price}&addInfo=${note}`;
 
   // 👉 tạo mã đơn
   const orderId = "36-" + Math.floor(10000 + Math.random() * 90000);
-
+  const channelId = i.channel.id;
   // 👉 tính bảo hành
   const warrantyDays = PLAN_TIME[plan] || 0;
   const expireAt = Date.now() + warrantyDays * 86400000;
+    // 🔥 LƯU ORDER
+if (!fs.existsSync("./orders.json")) {
+  fs.writeFileSync("./orders.json", "[]");
+}
 
+let data = [];
+
+try {
+  data = JSON.parse(fs.readFileSync("./orders.json"));
+} catch {
+  data = [];
+}
+
+data.push({
+  orderId,
+  userId: user.id,
+  product,
+  plan,
+  expireAt,
+  channelId
+});
+
+fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
   // 👉 tạo embed
   const embed = new EmbedBuilder()
     .setColor("#00ff99")
@@ -512,8 +538,8 @@ const list = userOrders.map((o, index) => {
       { name: "👤 Người mua", value: `<@${user.id}>`, inline: true },
       { name: "🧾 Mã đơn", value: `\`${orderId}\``, inline: true },
       { name: "💰 Đơn giá", value: `\`${price.toLocaleString()}đ\``, inline: true },
-      { name: "🏦 Ngân hàng", value: "Vietcombank", inline: true },
-{ name: "🔢 Số tài khoản", value: "`1030776109`", inline: true },
+      { name: "🏦 Ngân hàng", value: "MB Bank", inline: true },
+      { name: "🔢 Số tài khoản", value: "`8999999878`", inline: true },
       { name: "📌 Nội dung CK", value: `\`${note}\`` }
     )
     .setImage(qr) // 🔥 QUAN TRỌNG: QR hiện ở đây
@@ -538,9 +564,6 @@ const list = userOrders.map((o, index) => {
   // ===== CHECK =====
 if (i.commandName === "check") {
   const orderId = i.options.getString("order");
-
-  const fs = require("fs");
-
   if (!fs.existsSync("./orders.json")) {
     return i.reply({ content: "❌ Chưa có dữ liệu đơn hàng", ephemeral: true });
   }

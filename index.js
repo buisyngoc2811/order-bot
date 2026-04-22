@@ -213,6 +213,7 @@ try {
 
 // ===== BUTTON =====
 if (i.isButton() && i.customId.startsWith("feedback")) {
+  await i.deferUpdate();
   const parts = i.customId.split("|");
 if (parts.length < 3) return;
 

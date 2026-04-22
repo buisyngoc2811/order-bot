@@ -571,6 +571,14 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
       { name: "🏦 Ngân hàng", value: "MB Bank", inline: true },
       { name: "🔢 Số tài khoản", value: "`8999999878`", inline: true },
       { name: "📌 Nội dung CK", value: `\`${note}\`` }
+      {
+  name: "⚠️ Lưu ý",
+  value: `📌 Nhớ ghi đúng nội dung: \`${orderId}\` nha 👀
+
+⚠️ Ghi sai là bot “mù” luôn đó 😅
+
+👉 Lỡ sai thì không sao, gửi bill vào đây mình check liền cho bạn!`
+}
     )
     .setImage(qr) // 🔥 QUAN TRỌNG: QR hiện ở đây
     .setThumbnail(user.displayAvatarURL({ dynamic: true }))

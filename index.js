@@ -47,7 +47,7 @@ app.post("/webhook", async (req, res) => {
   const match = content.match(/36-\d+/);
 if (!match) return res.sendStatus(200);
 
-const orderId = match[0];
+const orderId = match[0].trim();
   console.log("👉 orderId:", orderId);
   console.log("👉 description:", content);
 
@@ -58,7 +58,9 @@ const orderId = match[0];
   const orders = JSON.parse(fs.readFileSync("./orders.json"));
 
   // 🔥 tìm đúng đơn theo user
-  const order = orders.find(o => o.orderId === orderId);
+  const order = orders.find(o => o.orderId.trim() === orderId.trim());
+  console.log("👉 orderId lấy được:", orderId);
+console.log("👉 orders:", orders.map(o => o.orderId));
   if (!order) return res.sendStatus(200);
 if (order.paid) {
   console.log("⚠️ Đơn đã thanh toán rồi");

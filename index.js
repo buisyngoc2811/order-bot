@@ -588,6 +588,7 @@ try {
         content: "❌ Lỗi xảy ra",
         ephemeral: true
       });
+    }
   }
 });
 

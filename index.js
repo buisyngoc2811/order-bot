@@ -370,6 +370,16 @@ await webhook.send({
 
 // ===== COMMAND =====
 if (!i.isChatInputCommand()) return;
+
+// 🔥 CHẶN TOÀN BỘ COMMAND
+const STAFF_ROLE_ID = "1496252313835274250";
+
+if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
+  return i.reply({
+    content: "❌ Bạn không có quyền dùng lệnh!",
+    ephemeral: true
+  });
+}
   // ===== ORDER =====
   if (i.commandName === "history") {
   const user = i.options.getUser("user");
@@ -434,6 +444,15 @@ const list = userOrders.map((o, index) => {
   });
 }
   if (i.commandName === "order") {
+    const STAFF_ROLE_ID = "1496252313835274250"; // 👈 thay bằng role staff của bạn
+
+  // ❌ chặn user thường
+  if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
+    return i.reply({
+      content: "❌ Bạn không có quyền dùng lệnh này!",
+      ephemeral: true
+    });
+  }
     const user = i.options.getUser("user");
 const product = i.options.getString("product");
 const plan = i.options.getString("plan");

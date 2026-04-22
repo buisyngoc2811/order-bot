@@ -44,7 +44,7 @@ app.post("/webhook", async (req, res) => {
 
   if (!content) return res.sendStatus(200);
 
-  const match = content.match(/36-\d+/);
+  const match = content.match(/\d{5,}/);
 if (!match) return res.sendStatus(200);
 
 const orderId = match[0];

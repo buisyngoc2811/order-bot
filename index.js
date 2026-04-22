@@ -20,6 +20,7 @@ const {
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
+const STAFF_ROLE_ID = "1496252313835274250";
 let isReady = false;
 
 client.once("clientReady", () => {
@@ -143,38 +144,53 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
 // ===== EVENTS =====
 client.on("interactionCreate", async (i) => {
+  try {
   // ===== BUTTON DONE (THÊM Ở ĐÂY) =====
 if (i.isButton() && i.customId.startsWith("done_")) {
-await i.deferUpdate();
-const [_, orderId, product, plan, userId] = i.customId.split("_");
-await i.channel.send({
-  content: `<@${userId}> 🎉 Đơn đã hoàn thành!`,
-});
-  const data = JSON.parse(fs.readFileSync("./orders.json"));
-const order = data.find(o => o.orderId === orderId);
 
-if (order?.paid) {
-  return i.followUp({
-    content: "⚠️ Đơn này đã hoàn thành rồi",
-    ephemeral: true
-  });
-}
+  // ✅ check quyền (đặt trước)
+  if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
+    return i.reply({
+      content: "❌ Bạn không có quyền",
+      ephemeral: true
+    });
+  }
 
-order.paid = true;
-fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
-  const STAFF_ROLE_ID = "1496252313835274250";
+  // ✅ ACK interaction (fix lỗi 10062)
+  await i.deferReply({ ephemeral: true });
 
-if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
-  return i.followUp({
-    content: "❌ Bạn không có quyền",
-    ephemeral: true
-  });
-}
+  const [_, orderId, product, plan, userId] = i.customId.split("_");
+
+  // ✅ đọc file an toàn
+  let data = [];
+  try {
+    data = JSON.parse(fs.readFileSync("./orders.json"));
+  } catch {
+    data = [];
+  }
+
+  const order = data.find(o => o.orderId === orderId);
+
+  // ✅ nếu đã done
+  if (order?.paid) {
+    return i.editReply("⚠️ Đơn này đã hoàn thành rồi");
+  }
+
+  // ✅ update
+  if (order) {
+    order.paid = true;
+  }
+
+  fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
+
+  // ✅ gửi ra channel (sau khi xử lý xong)
+  await i.channel.send(`<@${userId}> 🎉 Đơn đã hoàn thành!`);
+
   const price = PRICE_LIST[product]?.[plan] || 0;
-
   const warrantyDays = PLAN_TIME[plan] || 0;
   const expireAt = Date.now() + warrantyDays * 86400000;
   const expireDate = new Date(expireAt).toLocaleDateString("vi-VN");
+
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`feedback|${orderId}|${product}|${plan}`)
@@ -191,15 +207,18 @@ if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
 🛡 **Bảo hành**: ${PLAN_NAME[plan]}
 ⏳ **Hết hạn**: ${expireDate}
     `);
-  await i.channel.send({
-  embeds: [embed],
-  components: [row]
-});
-}
 
+  await i.channel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  // ✅ kết thúc interaction
+  return i.editReply("✅ Đã xử lý đơn");
+}
 // ===== BUTTON =====
 if (i.isButton() && i.customId.startsWith("feedback")) {
-  await i.deferUpdate();
+  await i.deferReply({ ephemeral: true });
   const parts = i.customId.split("|");
 if (parts.length < 3) return;
 
@@ -352,14 +371,13 @@ await webhook.send({
     )
   ]
 });
+  return; 
 }
 
 // ===== COMMAND =====
 if (!i.isChatInputCommand()) return;
 
 // 🔥 CHẶN TOÀN BỘ COMMAND
-const STAFF_ROLE_ID = "1496252313835274250";
-
 if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
   return i.reply({
     content: "❌ Bạn không có quyền dùng lệnh!",
@@ -382,7 +400,12 @@ if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
     });
   }
 
-  const data = JSON.parse(fs.readFileSync("./orders.json"));
+  let data = [];
+try {
+  data = JSON.parse(fs.readFileSync("./orders.json"));
+} catch {
+  data = [];
+}
 
   const userOrders = data.filter(o => o.userId === user.id);
 
@@ -527,7 +550,12 @@ if (i.commandName === "check") {
     return i.reply({ content: "❌ Chưa có dữ liệu đơn hàng", ephemeral: true });
   }
 
-  const data = JSON.parse(fs.readFileSync("./orders.json"));
+  let data = [];
+try {
+  data = JSON.parse(fs.readFileSync("./orders.json"));
+} catch {
+  data = [];
+}
 
   const order = data.find(o => o.orderId === orderId);
 
@@ -547,8 +575,21 @@ if (i.commandName === "check") {
     content: `✅ Đơn còn bảo hành ${remainDays} ngày`,
     ephemeral: true
   });
-}
-  });
+  } catch (err) {
+    console.error("🔥 Interaction error:", err);
+
+    if (i.deferred || i.replied) {
+      await i.followUp({
+        content: "❌ Lỗi xảy ra",
+        ephemeral: true
+      });
+    } else {
+      await i.reply({
+        content: "❌ Lỗi xảy ra",
+        ephemeral: true
+      });
+  }
+});
 
 app.get("/", (req, res) => {
   res.send("Bot is alive");

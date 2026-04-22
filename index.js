@@ -485,7 +485,7 @@ const list = userOrders.map((o, index) => {
   },
       { name: "👤 Người mua", value: `<@${user.id}>`, inline: true },
       { name: "🧾 Mã đơn", value: `\`${orderId}\``, inline: true },
-      { name: "💰 Đơn giá", value: `\`${price.toLocaleString()}đ\``, inline: true }
+      { name: "💰 Đơn giá", value: `\`${price.toLocaleString()}đ\``, inline: true },
       { name: "🏦 Ngân hàng", value: "Vietcombank", inline: true },
 { name: "🔢 Số tài khoản", value: "`1030776109`", inline: true },
       { name: "📌 Nội dung CK", value: `\`${note}\`` }

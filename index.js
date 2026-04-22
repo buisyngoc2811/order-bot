@@ -1,7 +1,14 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
-const fs = require("fs");
+
+app.get("/", (req, res) => {
+  res.send("Bot is alive");
+});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Web server chạy");
+});
 const { 
   Client, 
   GatewayIntentBits, 
@@ -20,14 +27,13 @@ const {
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
-const STAFF_ROLE_ID = "1496252313835274250";
-let isReady = false;
 
-client.once("clientReady", () => {
+client.once("ready", () => {
   console.log("Bot đã online!");
-  isReady = true;
 });
+
 client.login(process.env.TOKEN);
+
 // ===== PRICE =====
 const PRICE_LIST = {
   youtube: { "1m": 40000, "3m": 120000, "6m": 230000, "12m": 350000 },
@@ -144,52 +150,43 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
 // ===== EVENTS =====
 client.on("interactionCreate", async (i) => {
-  try {
   // ===== BUTTON DONE (THÊM Ở ĐÂY) =====
 if (i.isButton() && i.customId.startsWith("done_")) {
-
-  // ✅ check quyền (đặt trước)
-  if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
-    return i.reply({
-      content: "❌ Bạn không có quyền",
-      ephemeral: true
-    });
-  }
-
-  // ✅ ACK interaction (fix lỗi 10062)
-  await i.deferReply({ ephemeral: true });
-
-  const [_, orderId, product, plan, userId] = i.customId.split("_");
-
-  // ✅ đọc file an toàn
-  let data = [];
-  try {
-    data = JSON.parse(fs.readFileSync("./orders.json"));
-  } catch {
-    data = [];
-  }
-
-  const order = data.find(o => o.orderId === orderId);
-
-  // ✅ nếu đã done
-  if (order?.paid) {
-    return i.editReply("⚠️ Đơn này đã hoàn thành rồi");
-  }
-
-  // ✅ update
-  if (order) {
-    order.paid = true;
-  }
-
-  fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
-
-  // ✅ gửi ra channel (sau khi xử lý xong)
-  await i.channel.send(`<@${userId}> 🎉 Đơn đã hoàn thành!`);
-
+  const [_, orderId, product, plan, buyerId] = i.customId.split("_");
+  if (i.user.id !== buyerId) {
+  return i.reply({
+    content: "❌ Đây không phải đơn của bạn",
+    ephemeral: true
+  });
+}
   const price = PRICE_LIST[product]?.[plan] || 0;
+
   const warrantyDays = PLAN_TIME[plan] || 0;
   const expireAt = Date.now() + warrantyDays * 86400000;
   const expireDate = new Date(expireAt).toLocaleDateString("vi-VN");
+
+  const fs = require("fs");
+  if (!fs.existsSync("./orders.json")) {
+    fs.writeFileSync("./orders.json", "[]");
+  }
+
+let data = [];
+
+try {
+  data = JSON.parse(fs.readFileSync("./orders.json"));
+} catch {
+  data = [];
+}
+
+  data.push({
+    orderId,
+    userId: i.user.id,
+    product,
+    plan,
+    expireAt
+  });
+
+  fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -208,17 +205,15 @@ if (i.isButton() && i.customId.startsWith("done_")) {
 ⏳ **Hết hạn**: ${expireDate}
     `);
 
-  await i.channel.send({
+  return i.update({
     embeds: [embed],
     components: [row]
   });
-
-  // ✅ kết thúc interaction
-  return i.editReply("✅ Đã xử lý đơn");
 }
+
 // ===== BUTTON =====
 if (i.isButton() && i.customId.startsWith("feedback")) {
-  await i.deferReply({ ephemeral: true });
+  await i.deferUpdate();
   const parts = i.customId.split("|");
 if (parts.length < 3) return;
 
@@ -371,13 +366,14 @@ await webhook.send({
     )
   ]
 });
-  return; 
 }
 
 // ===== COMMAND =====
 if (!i.isChatInputCommand()) return;
 
 // 🔥 CHẶN TOÀN BỘ COMMAND
+const STAFF_ROLE_ID = "1496252313835274250";
+
 if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
   return i.reply({
     content: "❌ Bạn không có quyền dùng lệnh!",
@@ -393,6 +389,8 @@ if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
     ephemeral: true
   });
 }
+  const fs = require("fs");
+
   if (!fs.existsSync("./orders.json")) {
     return i.reply({
       content: "❌ Chưa có dữ liệu đơn hàng",
@@ -400,12 +398,7 @@ if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
     });
   }
 
-  let data = [];
-try {
-  data = JSON.parse(fs.readFileSync("./orders.json"));
-} catch {
-  data = [];
-}
+  const data = JSON.parse(fs.readFileSync("./orders.json"));
 
   const userOrders = data.filter(o => o.userId === user.id);
 
@@ -449,7 +442,7 @@ const list = userOrders.map((o, index) => {
     embeds: [embed],
     ephemeral: true
   });
-  }
+}
   if (i.commandName === "order") {
 
   // 👉 lấy dữ liệu từ lệnh
@@ -467,40 +460,20 @@ const list = userOrders.map((o, index) => {
       ephemeral: true
     });
   }
-  // 👉 tạo mã đơn
-  const orderId = "36-" + Math.floor(10000 + Math.random() * 90000);
-  const channelId = i.channel.id;
+
   // 👉 tạo nội dung chuyển khoản
   const note = `${user.id}`;
+
   // 👉 tạo QR
-  const qr = `https://img.vietqr.io/image/VCB-1030776109-compact.png?amount=${price}&addInfo=${encodeURIComponent(note)}`;
+  const qr = `https://img.vietqr.io/image/VCB-1030776109-compact.png?amount=${price}&addInfo=${note}`;
+
+  // 👉 tạo mã đơn
+  const orderId = "36-" + Math.floor(10000 + Math.random() * 90000);
+
   // 👉 tính bảo hành
   const warrantyDays = PLAN_TIME[plan] || 0;
   const expireAt = Date.now() + warrantyDays * 86400000;
-  // 🔥 LƯU ORDER
-  if (!fs.existsSync("./orders.json")) {
-  fs.writeFileSync("./orders.json", "[]");
-}
 
-let data = [];
-
-try {
-  data = JSON.parse(fs.readFileSync("./orders.json"));
-} catch {
-  data = [];
-}
-
-data.push({
-  orderId,
-  userId: user.id,
-  product,
-  plan,
-  expireAt,
-  channelId,
-  paid: false 
-});
-
-fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
   // 👉 tạo embed
   const embed = new EmbedBuilder()
     .setColor("#00ff99")
@@ -514,8 +487,8 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
       { name: "🧾 Mã đơn", value: `\`${orderId}\``, inline: true },
       { name: "💰 Đơn giá", value: `\`${price.toLocaleString()}đ\``, inline: true },
       { name: "🏦 Ngân hàng", value: "Vietcombank", inline: true },
-      { name: "🔢 Số tài khoản", value: "`1030776109`", inline: true },
-      { name: "📌 Nội dung CK", value: `\`${note}\`` },
+{ name: "🔢 Số tài khoản", value: "`1030776109`", inline: true },
+      { name: "📌 Nội dung CK", value: `\`${note}\`` }
     )
     .setImage(qr) // 🔥 QUAN TRỌNG: QR hiện ở đây
     .setThumbnail(user.displayAvatarURL({ dynamic: true }))
@@ -530,32 +503,23 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
       .setStyle(ButtonStyle.Success)
   );
 
-
-  await i.deferReply();
-// gửi đơn cho khách (KHÁCH NHÌN THẤY)
-await i.editReply({
-  embeds: [embed]
-});
-// gửi nút riêng cho staff (KHÁCH KHÔNG THẤY)
-await i.followUp({
-  content: `🔧 Staff xử lý đơn: ${orderId}`,
-  components: [row],
-  ephemeral: true
-});
+  // 👉 gửi ra Discord
+  await i.reply({
+    embeds: [embed],
+    components: [row]
+  });
 }
   // ===== CHECK =====
 if (i.commandName === "check") {
   const orderId = i.options.getString("order");
+
+  const fs = require("fs");
+
   if (!fs.existsSync("./orders.json")) {
     return i.reply({ content: "❌ Chưa có dữ liệu đơn hàng", ephemeral: true });
   }
 
-  let data = [];
-try {
-  data = JSON.parse(fs.readFileSync("./orders.json"));
-} catch {
-  data = [];
-}
+  const data = JSON.parse(fs.readFileSync("./orders.json"));
 
   const order = data.find(o => o.orderId === orderId);
 
@@ -575,29 +539,6 @@ try {
     content: `✅ Đơn còn bảo hành ${remainDays} ngày`,
     ephemeral: true
   });
-  } catch (err) {
-    console.error("🔥 Interaction error:", err);
+}
 
-    if (i.deferred || i.replied) {
-      await i.followUp({
-        content: "❌ Lỗi xảy ra",
-        ephemeral: true
-      });
-    } else {
-      await i.reply({
-        content: "❌ Lỗi xảy ra",
-        ephemeral: true
-      });
-    }
-  }
-});
-
-app.get("/", (req, res) => {
-  res.send("Bot is alive");
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("🌐 Web server chạy tại port", PORT);
 });

@@ -573,11 +573,12 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
       { name: "📌 Nội dung CK", value: `\`${note}\`` },
       {
   name: "⚠️ Lưu ý",
-  value: `📌 Nhớ ghi đúng nội dung: \`${orderId}\` nha 👀
+  value: `📌 Nhớ ghi: \`${orderId}\` nha 👀
 
-⚠️ Ghi sai là bot “mù” luôn đó 😅
+⚠️ Thiếu dấu "-" là bot mù luôn đó 😅  
+👉 Ghi kiểu \`${orderId.replace("-", "")}\` là toang
 
-👉 Lỡ sai thì không sao, gửi bill vào đây mình check liền cho bạn!`
+Sai thì gửi bill mình cứu liền!`
 }
     )
     .setImage(qr) // 🔥 QUAN TRỌNG: QR hiện ở đây

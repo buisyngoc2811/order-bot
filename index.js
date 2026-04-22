@@ -145,8 +145,11 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 client.on("interactionCreate", async (i) => {
   // ===== BUTTON DONE (THÊM Ở ĐÂY) =====
 if (i.isButton() && i.customId.startsWith("done_")) {
-  await i.deferUpdate();
-  const [_, orderId, product, plan, buyerId] = i.customId.split("_");
+await i.deferUpdate();
+const [_, orderId, product, plan, userId] = i.customId.split("_");
+await i.channel.send({
+  content: `<@${userId}> 🎉 Đơn đã hoàn thành!`,
+});
   const data = JSON.parse(fs.readFileSync("./orders.json"));
 const order = data.find(o => o.orderId === orderId);
 
@@ -188,11 +191,10 @@ if (!i.member.roles.cache.has(STAFF_ROLE_ID)) {
 🛡 **Bảo hành**: ${PLAN_NAME[plan]}
 ⏳ **Hết hạn**: ${expireDate}
     `);
-
-  return i.editReply({
-    embeds: [embed],
-    components: [row]
-  });
+  await i.channel.send({
+  embeds: [embed],
+  components: [row]
+});
 }
 
 // ===== BUTTON =====
@@ -505,11 +507,14 @@ fs.writeFileSync("./orders.json", JSON.stringify(data, null, 2));
       .setStyle(ButtonStyle.Success)
   );
 
-  // 👉 gửi ra Discord
-  await i.reply({
+
+  await i.deferReply();
+// gửi đơn cho khách (KHÁCH NHÌN THẤY)
+await i.editReply({
   embeds: [embed]
 });
-    await i.followUp({
+// gửi nút riêng cho staff (KHÁCH KHÔNG THẤY)
+await i.followUp({
   content: `🔧 Staff xử lý đơn: ${orderId}`,
   components: [row],
   ephemeral: true
@@ -544,6 +549,7 @@ if (i.commandName === "check") {
   });
 }
   });
+
 app.get("/", (req, res) => {
   res.send("Bot is alive");
 });

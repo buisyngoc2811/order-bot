@@ -1,7 +1,33 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
+app.use(express.json());
 
+app.post("/webhook", async (req, res) => {
+  const data = req.body;
+
+  console.log("💰 SePay gửi:", data);
+
+  const amount = data.amount;
+  const content = data.content;
+
+  if (!content) return res.sendStatus(200);
+
+  const userId = content.trim();
+
+  try {
+    const channel = await client.channels.fetch("1411071233050808444");
+
+    await channel.send(
+      `💰 Nhận ${amount.toLocaleString()}đ từ <@${userId}>`
+    );
+  } catch (err) {
+    console.log("Lỗi gửi Discord:", err);
+  }
+
+  res.sendStatus(200);
+});
+app.use(express.json());
 app.get("/", (req, res) => {
   res.send("Bot is alive");
 });

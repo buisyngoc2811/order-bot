@@ -444,45 +444,71 @@ const list = userOrders.map((o, index) => {
   });
 }
   if (i.commandName === "order") {
-    const user = i.options.getUser("user");
-const product = i.options.getString("product");
-const plan = i.options.getString("plan");
 
-const orderId = "36-" + Math.floor(10000 + Math.random() * 90000);
+  // 👉 lấy dữ liệu từ lệnh
+  const user = i.options.getUser("user");
+  const product = i.options.getString("product");
+  const plan = i.options.getString("plan");
 
-const price = PRICE_LIST[product]?.[plan] || 0;
-const warrantyDays = PLAN_TIME[plan] || 0;
-const expireAt = Date.now() + warrantyDays * 86400000;
-const expireDate = new Date(expireAt).toLocaleDateString("vi-VN");
+  // 👉 lấy giá từ bảng PRICE_LIST
+  const price = PRICE_LIST[product]?.[plan];
 
-    const embed = new EmbedBuilder()
-      .setColor("#00ff99")
-      .setTitle("📦 ĐƠN HÀNG MỚI")
-      .addFields(
-        {
-          name: "📦 Sản phẩm",
-          value: `\`\`\`\n${PRODUCT_NAME[product]}\n⏱ ${PLAN_NAME[plan]}\n\`\`\``
-        },
-        { name: "👤 Người mua", value: `<@${user.id}>`, inline: true },
-        { name: "🧾 Mã đơn", value: `\`${orderId}\``, inline: true },
-        { name: "💰 Đơn giá", value: `\`${price.toLocaleString()}đ\``, inline: true }
-      )
-      .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-      .setFooter({ text: "36 Store • Order System" })
-      .setTimestamp();
-
-   
-    const row = new ActionRowBuilder().addComponents(
-  new ButtonBuilder()
-    .setCustomId(`done_${orderId}_${product}_${plan}_${user.id}`)
-    .setLabel("✅ Hoàn thành đơn")
-    .setStyle(ButtonStyle.Success)
-);
-await i.reply({
-  embeds: [embed],
-  components: [row]
-});
+  // ❌ nếu sai gói
+  if (!price) {
+    return i.reply({
+      content: "❌ Gói không hợp lệ!",
+      ephemeral: true
+    });
   }
+
+  // 👉 tạo nội dung chuyển khoản
+  const note = `${user.id}`;
+
+  // 👉 tạo QR
+  const qr = `https://img.vietqr.io/image/VCB-1030776109-compact.png?amount=${price}&addInfo=${note}`;
+
+  // 👉 tạo mã đơn
+  const orderId = "36-" + Math.floor(10000 + Math.random() * 90000);
+
+  // 👉 tính bảo hành
+  const warrantyDays = PLAN_TIME[plan] || 0;
+  const expireAt = Date.now() + warrantyDays * 86400000;
+
+  // 👉 tạo embed
+  const embed = new EmbedBuilder()
+    .setColor("#00ff99")
+    .setTitle("📦 ĐƠN HÀNG MỚI")
+    .addFields(
+  {
+    name: "📦 Sản phẩm",
+    value: `\`\`\`\n${PRODUCT_NAME[product]} - ${PLAN_NAME[plan]}\n\`\`\``
+  },
+      { name: "👤 Người mua", value: `<@${user.id}>`, inline: true },
+      { name: "🧾 Mã đơn", value: `\`${orderId}\``, inline: true },
+      { name: "💰 Đơn giá", value: `\`${price.toLocaleString()}đ\``, inline: true }
+      { name: "🏦 Ngân hàng", value: "Vietcombank", inline: true },
+{ name: "🔢 Số tài khoản", value: "`1030776109`", inline: true },
+      { name: "📌 Nội dung CK", value: `\`${note}\`` }
+    )
+    .setImage(qr) // 🔥 QUAN TRỌNG: QR hiện ở đây
+    .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+    .setFooter({ text: "36 Store • Order System" })
+    .setTimestamp();
+
+  // 👉 nút hoàn thành
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`done_${orderId}_${product}_${plan}_${user.id}`)
+      .setLabel("✅ Hoàn thành đơn")
+      .setStyle(ButtonStyle.Success)
+  );
+
+  // 👉 gửi ra Discord
+  await i.reply({
+    embeds: [embed],
+    components: [row]
+  });
+}
   // ===== CHECK =====
 if (i.commandName === "check") {
   const orderId = i.options.getString("order");

@@ -543,6 +543,7 @@ if (i.commandName === "check") {
     ephemeral: true
   });
 }
+  });
 app.get("/", (req, res) => {
   res.send("Bot is alive");
 });

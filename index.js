@@ -24,7 +24,7 @@ const client = new Client({
 });
 let isReady = false;
 
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log("Bot đã online!");
   isReady = true;
 });
@@ -239,6 +239,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 client.on("interactionCreate", async (i) => {
   // ===== BUTTON DONE (THÊM Ở ĐÂY) =====
 if (i.isButton() && i.customId.startsWith("done_")) {
+  await i.deferUpdate();
   const [_, orderId, product, plan, buyerId] = i.customId.split("_");
   if (i.user.id !== buyerId) {
   return i.reply({
@@ -268,7 +269,7 @@ if (i.isButton() && i.customId.startsWith("done_")) {
 ⏳ **Hết hạn**: ${expireDate}
     `);
 
-  return i.update({
+  return i.editReply({
     embeds: [embed],
     components: [row]
   });

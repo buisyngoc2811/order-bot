@@ -44,7 +44,7 @@ app.post("/webhook", async (req, res) => {
 
   if (!content) return res.sendStatus(200);
 
-  const match = content.match(/\d{5,}/);
+  const match = content.match(/36-\d+/);
 if (!match) return res.sendStatus(200);
 
 const orderId = match[0];
@@ -242,7 +242,7 @@ if (i.isButton() && i.customId.startsWith("done_")) {
   await i.deferUpdate();
   const [_, orderId, product, plan, buyerId] = i.customId.split("_");
   if (i.user.id !== buyerId) {
-  return i.reply({
+  return i.followUp({
     content: "❌ Đây không phải đơn của bạn",
     ephemeral: true
   });
